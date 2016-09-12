@@ -1,0 +1,170 @@
+---
+title: "Course Project - Practical Machine Learning"
+author: "Christopher Hardison"
+date: "September 8, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Introduction
+
+
+In this project we will be examining measurements from accelerometers worn by test subjects to detect if they are preforming exercises in one of five different ways. More information on the data we will be using can be found at <http://groupware.les.inf.puc-rio.br/har> in the section on the Weight Lifting Exercise Dataset.
+
+The training data for this project is available here:
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv>
+
+The test data is available here:
+
+<https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv>
+
+
+##Data 
+
+First we will load all external libraries we will need.
+```{r message=FALSE, warning=FALSE}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+```
+
+Then we will read in the testing and validation data.
+
+```{r load_data}
+training_set <- read.csv("pml-training.csv", stringsAsFactors = FALSE, header = TRUE)
+validation_set <- read.csv("pml-testing.csv", stringsAsFactors = FALSE, header = TRUE)
+```
+
+
+###cleaning and preparation
+
+Here we will prepare our training data set by removing fields that don't help us define our predective model. First lets use the nearZeroVar function to identify columns that have low variance and therefore are not valid predictors.
+
+```{r clean_data_1}
+var_set <- nearZeroVar(training_set)
+training_set <- training_set[, -var_set]
+
+```
+
+Second looking at the data we can see we have lot's of columns were a large number of the values are NA, let's remove those as well. 
+
+```{r clean_data_2}
+NA_set <- sapply(training_set, function(x) mean(is.na(x))) > 0.95
+training_set <- training_set[, NA_set==F]
+
+```
+
+Finally let's remove the first six columns that we can see are obviously not predictors for our models. They contain observations such as timestamps and user information.
+
+```{r clean_data_3}
+training_set <- training_set[, -(1:6)]
+```
+
+
+###Creating Traning and Testing Sets
+
+Now that we've cleaned the data let's split it in to separate training and testing sets for our models. We'll set our training set to be 70% of the testing values and our testing one to be 30%.
+
+```{r create_data_sets}
+set.seed(1776)
+
+training_flag <- createDataPartition(y=training_set$classe, p=0.7, list=FALSE)
+
+training <- training_set[training_flag, ]
+testing <- training_set[-training_flag, ]
+```
+
+Here's Our Training set numbers
+
+```{r training_set }
+dim(training)
+```
+
+And our testing set numbers.
+
+```{r testing_set }
+dim(testing)
+```
+
+
+##Model Testing
+
+First we will set up a control for the train function that implements cross validation for our tests.
+
+```{r cross_validation}
+model_fit_Control <- trainControl(method="cv", number=3, verboseIter = FALSE)
+```
+
+
+###R Part Model
+
+First we will fit an r part model to see how accurately it predicts our data.
+
+```{r message=FALSE, warning=FALSE}
+rpart_model_fit <- train(classe ~ ., data=training, method="rpart", trControl=model_fit_Control)
+```
+
+Here's the decision tree for our r part model.
+
+```{r model_one_diag}
+fancyRpartPlot(rpart_model_fit$finalModel)
+```
+
+
+Now we will run our model against our testing set to see what our accuracy is.
+
+```{r model_one_testing}
+rpart_pred <- predict(rpart_model_fit, newdata=testing)
+confusionMatrix(testing$classe, rpart_pred)
+```
+
+We can see from this that our accuracy is very low, 49%, and our out of sample error is very high, 51%.
+
+
+###GBM Model
+
+Next we will use a GBM Model to see if that preforms better.
+
+```{r message=FALSE, warning=FALSE}
+
+gbm_model_fit <- train(classe ~ ., data=training, method="gbm", trControl=model_fit_Control)
+
+gbm_pred <- predict(gbm_model_fit, newdata=testing)
+
+confusionMatrix(testing$classe, gbm_pred)
+
+```
+
+We can see that our accuracy and out of sample error is much better with this model. 96%, and 4% respectivly.
+
+
+###Random Forest
+
+We'll try one more model, a random forest, to see if it gives us a better result.
+
+```{r message=FALSE, warning=FALSE}
+
+rf_model_fit <- train(classe ~ ., data=training, method="rf", trControl=model_fit_Control)
+
+rf_pred <- predict(rf_model_fit, newdata=testing)
+
+confusionMatrix(testing$classe, rf_pred)
+
+```
+
+That's the best we have seen 99.6% accuracy and .4% out of sample error.
+
+
+##Conclusion
+
+The Random Forest model gives us our best accuracy so we will use that on our validation set to predict the values for the 20 different cases.
+
+```{r final}
+predict(rf_model_fit, newdata=validation_set)
+```
+
