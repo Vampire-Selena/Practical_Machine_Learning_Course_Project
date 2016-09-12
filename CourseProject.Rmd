@@ -41,7 +41,7 @@ validation_set <- read.csv("pml-testing.csv", stringsAsFactors = FALSE, header =
 ```
 
 
-###cleaning and preparation
+###Cleaning and Preparation
 
 Here we will prepare our training data set by removing fields that don't help us define our predective model. First lets use the nearZeroVar function to identify columns that have low variance and therefore are not valid predictors.
 
@@ -66,7 +66,7 @@ training_set <- training_set[, -(1:6)]
 ```
 
 
-###Creating Traning and Testing Sets
+###Creating Training and Testing Sets
 
 Now that we've cleaned the data let's split it in to separate training and testing sets for our models. We'll set our training set to be 70% of the testing values and our testing one to be 30%.
 
@@ -79,7 +79,7 @@ training <- training_set[training_flag, ]
 testing <- training_set[-training_flag, ]
 ```
 
-Here's Our Training set numbers
+Here's our training set numbers
 
 ```{r training_set }
 dim(training)
@@ -132,7 +132,7 @@ Next we will use a GBM Model to see if that preforms better.
 
 ```{r message=FALSE, warning=FALSE}
 
-gbm_model_fit <- train(classe ~ ., data=training, method="gbm", trControl=model_fit_Control)
+gbm_model_fit <- train(classe ~ ., data=training, method="gbm", verbose = FALSE, trControl=model_fit_Control)
 
 gbm_pred <- predict(gbm_model_fit, newdata=testing)
 
